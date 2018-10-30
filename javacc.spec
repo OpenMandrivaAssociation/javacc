@@ -31,7 +31,7 @@
 
 Name:           javacc
 Version:        5.0
-Release:        12.3
+Release:        12.4
 Epoch:          0
 Group:		Development/Java
 Summary:        A parser/scanner generator for java
