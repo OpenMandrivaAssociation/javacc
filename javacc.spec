@@ -41,7 +41,7 @@ Source1:        javacc.sh
 Source2:        jjdoc
 Source3:        jjtree
 Patch0:         0001-Add-javadoc-target-to-build.xml.patch
-URL:            http://javacc.java.net/
+URL:            https://javacc.java.net/
 Requires:       java
 BuildRequires:  ant
 BuildRequires:  ant-junit
