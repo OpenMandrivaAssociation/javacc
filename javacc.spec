@@ -1,224 +1,129 @@
-%{?_javapackages_macros:%_javapackages_macros}
-# Copyright (c) 2000-2005, JPackage Project
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name of the JPackage Project nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-
-Name:           javacc
-Version:        5.0
-Release:        12.4
-Epoch:          0
+Name:		javacc
+Version:	7.0.12
+Release:	1
+Summary:	Parser generator for Java
 Group:		Development/Java
-Summary:        A parser/scanner generator for java
-License:        BSD
-Source0:        http://java.net/projects/%{name}/downloads/download/%{name}-%{version}src.tar.gz
-Source1:        javacc.sh
-Source2:        jjdoc
-Source3:        jjtree
-Patch0:         0001-Add-javadoc-target-to-build.xml.patch
-URL:            https://javacc.java.net/
-Requires:       java
-BuildRequires:  ant
-BuildRequires:  ant-junit
-BuildRequires:  junit
-BuildRequires:  javacc
-BuildRequires:  java-devel
+License:	BSD-3-Clause
+URL:		https://javacc.github.io/javacc/
+# Generated parser sources from the 7.0.12 sources jar, plus the
+# Sun BSD LICENSE from the git tag. The git tag bootstraps those
+# sources from a prebuilt jar, which this archive does not contain.
+Source0:	javacc-%{version}.tar.gz
 
-BuildArch:      noarch
+BuildArch:	noarch
+BuildRequires:	java-current-devel
+BuildRequires:	sysjar
+Requires:	java
 
-%description 
-Java Compiler Compiler (JavaCC) is the most popular parser generator for use
-with Java applications. A parser generator is a tool that reads a grammar
-specification and converts it to a Java program that can recognize matches to
-the grammar. In addition to the parser generator itself, JavaCC provides other
-standard capabilities related to parser generation such as tree building (via
-a tool called JJTree included with JavaCC), actions, debugging, etc.
-
-%package manual
-Summary:        Manual for %{name}
-
-%description manual
-Manual for %{name}.
-
-%package demo
-Summary:        Examples for %{name}
-Requires:       %{name} = %{version}-%{release}
-
-%description demo
-Examples for %{name}.
-
-%package javadoc
-Summary:        Javadoc for %{name}
-
-%description javadoc
-This package contains the API documentation for %{name}.
+%description
+JavaCC %{version} reads a grammar and writes a Java parser.
+FreeMarker 2.3.35 generates its FTL parser with this release.
+The jar also contains the JJTree and JJDoc tools and the
+templates those generators load at runtime.
 
 %prep
-%setup -q -n %{name}
-
-%patch0 -p1
-
-# Remove binary information in the source tar
-find . -name "*.jar" -delete
-find . -name "*.class" -delete
-
-find ./examples -type f -exec sed -i 's/\r//' {} \;
-
-ln -s `build-classpath javacc` bootstrap/javacc.jar
-
-sed -i 's/source="1.4"/source="1.5"/g' src/org/javacc/{parser,jjdoc,jjtree}/build.xml
+%autosetup -n javacc-%{version}
+find . \( -name '*.jar' -o -name '*.class' -o -name '*.so' -o -name '*.node' -o -name '*.wasm' \) -delete
 
 %build
-# Use the bootstrap javacc.jar to generate some required
-# source java files. After these source files are generated we
-# remove the bootstrap jar and build the binary from source.
-ant -f src/org/javacc/parser/build.xml parser-files
-ant -f src/org/javacc/jjtree/build.xml tree-files
-find . -name "*.jar" -delete
-ant jar javadoc
+set -eo pipefail
+export JAVA_HOME=%{_jvmdir}/java-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+# The four default-package launchers keep the jar from being a module.
+# The wrappers call org.javacc.parser.Main, jjtree.Main, and JJDocMain.
+find src/main/java -name '*.java' \
+	! -name 'JavaCCInterpreter.java' \
+	! -name 'javacc.java' \
+	! -name 'jjdoc.java' \
+	! -name 'jjtree.java' > sources.list
+test "$(wc -l < sources.list)" -eq 160
+mkdir -p classes
+javac --release 8 -encoding UTF-8 -Xlint:-options -proc:none \
+	-d classes @sources.list
+cp -a templates classes/templates
+cp -a version.properties classes/version.properties
+printf 'Manifest-Version: 1.0\nAutomatic-Module-Name: org.javacc\n\n' > manifest.mf
+jar cfm javacc.jar manifest.mf -C classes .
+jar i javacc.jar
+jar tf javacc.jar | grep -F -q 'templates/TokenManagerBoilerPlateMethods.template'
+jar tf javacc.jar | grep -qx 'version.properties'
+jar tf javacc.jar | grep -F -q 'org/javacc/parser/Main.class'
+
+cat > javacc.pom << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>net.java.dev.javacc</groupId>
+  <artifactId>javacc</artifactId>
+  <version>7.0.12</version>
+  <name>JavaCC</name>
+  <description>Java Compiler Compiler 7.0.12 parser generator.</description>
+  <url>https://javacc.github.io/javacc/</url>
+  <licenses>
+    <license>
+      <name>BSD-3-Clause</name>
+      <url>https://raw.githubusercontent.com/javacc/javacc/javacc-7.0.12/LICENSE</url>
+    </license>
+  </licenses>
+</project>
+EOF
 
 %install
-# jar
-install -Dpm 644 bin/lib/%{name}.jar %{buildroot}%{_javadir}/%{name}.jar
+set -eo pipefail
+sysjar install --buildroot %{buildroot} \
+	--artifact javacc.pom:javacc.jar \
+	--file-name javacc \
+	--filelist .mfiles
+mkdir -p %{buildroot}%{_bindir}
+cat > %{buildroot}%{_bindir}/javacc << 'EOF'
+#!/bin/sh
+JAVA_HOME="${JAVA_HOME:-%{_jvmdir}/java-openjdk}"
+exec "$JAVA_HOME/bin/java" -cp "%{_javadir}/javacc.jar" org.javacc.parser.Main "$@"
+EOF
+cat > %{buildroot}%{_bindir}/jjtree << 'EOF'
+#!/bin/sh
+JAVA_HOME="${JAVA_HOME:-%{_jvmdir}/java-openjdk}"
+exec "$JAVA_HOME/bin/java" -cp "%{_javadir}/javacc.jar" org.javacc.jjtree.Main "$@"
+EOF
+cat > %{buildroot}%{_bindir}/jjdoc << 'EOF'
+#!/bin/sh
+JAVA_HOME="${JAVA_HOME:-%{_jvmdir}/java-openjdk}"
+exec "$JAVA_HOME/bin/java" -cp "%{_javadir}/javacc.jar" org.javacc.jjdoc.JJDocMain "$@"
+EOF
+chmod 755 %{buildroot}%{_bindir}/javacc %{buildroot}%{_bindir}/jjtree %{buildroot}%{_bindir}/jjdoc
+echo "%{_bindir}/javacc" >> .mfiles
+echo "%{_bindir}/jjtree" >> .mfiles
+echo "%{_bindir}/jjdoc" >> .mfiles
 
-# bin
-install -Dp -T -m 755 %{SOURCE1} %{buildroot}/%{_bindir}/javacc.sh
-install -Dp -T -m 755 %{SOURCE2} %{buildroot}/%{_bindir}/jjdoc
-install -Dp -T -m 755 %{SOURCE3} %{buildroot}/%{_bindir}/jjtree
-
-# javadoc
-install -d -p 755 %{buildroot}/%{_javadocdir}/%{name}
-cp -rp api/* %{buildroot}/%{_javadocdir}/%{name}
-
-# pom
-install -Dpm 644 pom.xml %{buildroot}/%{_mavenpomdir}/JPP-%{name}.pom
-%add_maven_depmap JPP-%{name}.pom %{name}.jar
-
+%check
+set -eo pipefail
+export JAVA_HOME=%{_jvmdir}/java-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+JAR=%{buildroot}%{_javadir}/javacc.jar
+test -s "$JAR"
+mkdir -p check/gen
+cat > check/Hello.jj << 'END'
+options { STATIC = false; }
+PARSER_BEGIN(Hello)
+public class Hello {
+	public static void main(String[] args) throws Exception {
+		Hello p = new Hello(new java.io.StringReader("gradle"));
+		p.Input();
+		System.out.println("javacc_ok gradle");
+	}
+}
+PARSER_END(Hello)
+TOKEN : { <GRADLE : "gradle"> }
+void Input() : {} { <GRADLE> <EOF> }
+END
+java -cp "$JAR" org.javacc.parser.Main -OUTPUT_DIRECTORY=check/gen check/Hello.jj > check/gen.log
+cat check/gen.log
+grep -F -q "Java Compiler Compiler Version %{version}" check/gen.log
+grep -F -q 'Parser generated successfully.' check/gen.log
+javac --release 8 -encoding UTF-8 -Xlint:-options -proc:none -d check/gen check/gen/*.java
+java -cp check/gen Hello > check/out.txt
+cat check/out.txt
+grep -F -q 'javacc_ok gradle' check/out.txt
 
 %files -f .mfiles
-%{_javadir}/*.jar
-%doc LICENSE README
-%{_bindir}/*
-
-%files manual
-%doc LICENSE README
-%doc www/*
-
-%files demo
-%doc examples
-
-%files javadoc
-%doc LICENSE README
-%{_javadocdir}/%{name}
-
-%changelog
-* Tue Jul 30 2013 Michal Srb <msrb@redhat.com> - 0:5.0-9
-- Generate javadoc
-- Drop group tag
-
-* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:5.0-8
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
-
-* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:5.0-7
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
-
-* Thu Jun 28 2012 Jaromir Capik <jcapik@redhat.com> 0:5.0-6
-- Fixing #835786 - javacc: Invalid upstream URL
-- Minor spec file changes according to the latest guidelines
-
-* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:5.0-5
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
-
-* Wed Feb 09 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:5.0-4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
-
-* Tue Jul 13 2010 Alexander Kurtakov <akurtako@redhat.com> 0:5.0-3
-- Fix examples line endings.
-
-* Fri Jun 4 2010 Alexander Kurtakov <akurtako@redhat.com> 0:5.0-2
-- Apply changes requested in review bug (rhbz#225940).
-
-* Thu Feb 11 2010 Alexander Kurtakov <akurtako@redhat.com> 0:5.0-1
-- Update to upstream 5.0 release.
-
-* Tue Nov 24 2009 Alexander Kurtakov <akurtako@redhat.com> 0:4.1-0.6
-- Use standard permissions and fix unowned directories.
-
-* Tue Nov 24 2009 Alexander Kurtakov <akurtako@redhat.com> 0:4.1-0.5
-- Fix rpmlint warnings.
-- Drop gcj support.
-
-* Fri Jul 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.1-0.4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_12_Mass_Rebuild
-
-* Wed Feb 25 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.1-0.3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_11_Mass_Rebuild
-
-* Wed Dec 03 2008 Matt Wringe <mwringe@redhat.com> - 0:4.1-0.2
-- Update to remove packaged jars in source tar
-- Build with bootstrap jar so that required java source 
-  files get generated
-
-* Wed Oct 22 2008 Jerry James <loganjerry@gmail.com> - 0:4.1-0.1
-- Update to 4.1
-- Also ship the jjrun script
-- Own the appropriate gcj directory
-- Minor spec file changes to comply with latest Fedora guidelines
-- Include the top-level index.html file in the manual
-
-* Wed Jul  9 2008 Tom "spot" Callaway <tcallawa@redhat.com> - 0:4.0-4.5
-- drop repotag
-
-* Fri Feb 22 2008 Matt Wringe <mwringe at redhat.com> - 0:4.0-4jpp.4
-- Rename javacc script file to javacc.sh as this confuses the makefile
-
-* Tue Feb 19 2008 Fedora Release Engineering <rel-eng@fedoraproject.org> - 0:4.0-4jpp.3
-- Autorebuild for GCC 4.3
-
-* Thu Aug 10 2006 Matt Wringe <mwringe at redhat.com> - 0:4.0-3jpp.3
-- Rebuilt with new naming convention
-
-* Sat Jul 22 2006 Jakub Jelinek <jakub@redhat.com> - 0:4.0-3jpp_2fc
-- Rebuilt
-
-* Tue Jul 18 2006 Matthew Wringe <mwringe at redhat.com> - 0:4.0-3jpp_1fc
-- Merged with upstream version
-- Changed directory locations to rpm macros
-- Added conditional native compiling
-
-* Thu Apr 20 2006 Fernando Nasser <fnasser@redhat.com> - 0:4.0-2jpp
-- First JPP 1.7 build
-
-* Fri Mar 31 2006 Sebastiano Vigna <vigna at acm.org> - 0:4.0-1jpp
-- Updated to 4.0
-
-* Sun Aug 23 2004 Randy Watler <rwatler at finali.com> - 0:3.2-2jpp
-- Rebuild with ant-1.6.2
-
-* Fri Jan 30 2004 Sebastiano Vigna <vigna at acm.org> 0:3.2-1jpp
-- First JPackage version
+%doc LICENSE
