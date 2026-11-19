@@ -1,11 +1,11 @@
 Name:		javacc
-Version:	7.0.12
+Version:	7.0.13
 Release:	1
 Summary:	Parser generator for Java
 Group:		Development/Java
 License:	BSD-3-Clause
 URL:		https://javacc.github.io/javacc/
-# Generated parser sources from the 7.0.12 sources jar, plus the
+# Generated parser sources from the 7.0.13 sources jar, plus the
 # Sun BSD LICENSE from the git tag. The git tag bootstraps those
 # sources from a prebuilt jar, which this archive does not contain.
 Source0:	javacc-%{version}.tar.gz
@@ -55,14 +55,14 @@ cat > javacc.pom << 'EOF'
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.java.dev.javacc</groupId>
   <artifactId>javacc</artifactId>
-  <version>7.0.12</version>
+  <version>7.0.13</version>
   <name>JavaCC</name>
-  <description>Java Compiler Compiler 7.0.12 parser generator.</description>
+  <description>Java Compiler Compiler 7.0.13 parser generator.</description>
   <url>https://javacc.github.io/javacc/</url>
   <licenses>
     <license>
       <name>BSD-3-Clause</name>
-      <url>https://raw.githubusercontent.com/javacc/javacc/javacc-7.0.12/LICENSE</url>
+      <url>https://raw.githubusercontent.com/javacc/javacc/javacc-7.0.13/LICENSE</url>
     </license>
   </licenses>
 </project>

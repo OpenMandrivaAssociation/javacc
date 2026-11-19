@@ -1,4 +1,5 @@
 sources:
-  javacc-7.0.12.tar.gz: 2a64b4ba81d043d17a2c01d6e3459f733932e01e
+  javacc-7.0.13.tar.gz: 3d7cbbf705a9316e8b728a06d9698add21722ca2
 removed_sources:
+  javacc-7.0.12.tar.gz: 2a64b4ba81d043d17a2c01d6e3459f733932e01e
   javacc-5.0src.tar.gz: 41159a705cf118f8e8c687a2fe2e923361ab35f7
